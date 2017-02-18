@@ -407,10 +407,11 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
             try:
                 self.connections.remove(self)
             except KeyError:
-                logger.warn("Tried to remove connection {} "
-                            "but it's already gone.".format(self))
+                logger.debug("Tried to remove connection {} "
+                                "but it's already gone.".format(self))
             if self.debug:
                 raise ConnectionClosed(self.close_code, self.close_reason)
+            return
 
         # If the closing handshake is in progress, let it complete to get the
         # proper close status and code. As an safety measure, the timeout is
@@ -420,6 +421,7 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
                 self.worker_task, 3 * self.timeout, loop=self.loop)
             if self.debug:
                 raise ConnectionClosed(self.close_code, self.close_reason)
+            return
 
         # Control may only reach this point in buggy third-party subclasses.
         assert self.state == CONNECTING
@@ -552,8 +554,12 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
     def write_frame(self, opcode, data=b''):
         # Defensive assertion for protocol compliance.
         if self.state != OPEN:                              # pragma: no cover
-            raise InvalidState("Cannot write to a WebSocket "
-                               "in the {} state".format(self.state_name))
+            mesg = ("Cannot write to a WebSocket "
+                                   "in the {} state").format(self.state_name)
+            if self.debug:
+                raise InvalidState(mesg)
+            logger.debug(mesg)
+            return
 
         # Make sure no other frame will be sent after a close frame. Do this
         # before yielding control to avoid sending more than one close frame.
