@@ -5,10 +5,10 @@ import ssl
 import unittest
 import unittest.mock
 
-from .client import *
-from .exceptions import ConnectionClosed, InvalidHandshake
-from .http import USER_AGENT, read_response
-from .server import *
+from websockets.client import *
+from websockets.exceptions import ConnectionClosed, InvalidHandshake
+from websockets.http import USER_AGENT, read_response
+from websockets.server import *
 
 
 # Avoid displaying stack traces at the ERROR logging level.
@@ -450,7 +450,7 @@ class ClientServerOriginTests(unittest.TestCase):
 
 
 try:
-    from .py35.client_server import ClientServerContextManager
+    from websockets.py35.client_server import ClientServerContextManager
 except (SyntaxError, ImportError):                          # pragma: no cover
     pass
 else:

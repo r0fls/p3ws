@@ -34,6 +34,8 @@ CONNECTING, OPEN, CLOSING, CLOSED = range(4)
 # WebSocketCommonProtocol.state before assigning a new value and never yields
 # between the check and the assignment.
 
+connections = set()
+
 
 class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
     """
@@ -104,10 +106,12 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
     def __init__(self, *,
                  host=None, port=None, secure=None,
                  timeout=10, max_size=2 ** 20, max_queue=2 ** 5,
-                 loop=None, legacy_recv=False):
+                 loop=None, legacy_recv=False, debug=False):
         self.host = host
         self.port = port
         self.secure = secure
+
+        self.debug = debug
 
         self.timeout = timeout
         self.max_size = max_size
@@ -144,6 +148,7 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
         self.closing_handshake = asyncio.Future(loop=loop)
         # Set to None when the connection state becomes CLOSED.
         self.connection_closed = asyncio.Future(loop=loop)
+        self.connections = connections
 
         # Queue of received messages.
         self.messages = asyncio.queues.Queue(max_queue, loop=loop)
@@ -158,6 +163,10 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
         # CONNECTING at this point.
         if self.state == OPEN:
             self.opening_handshake.set_result(True)
+
+    def connection_made(self, transport):
+        self.connections.add(self)
+        super().connection_made(transport)
 
     # Public API
 
@@ -318,6 +327,10 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
 
         yield from self.write_frame(opcode, data)
 
+    async def emit(self, data):
+        for connection in self.connections:
+            await connection.send(data)
+
     @asyncio.coroutine
     def ping(self, data=None):
         """
@@ -390,7 +403,13 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
             return
 
         if self.state == CLOSED:
-            raise ConnectionClosed(self.close_code, self.close_reason)
+            try:
+                self.connections.remove(self)
+            except KeyError:
+                logger.warn("Tried to remove connection {} "
+                            "but it's already gone.".format(self))
+            if self.debug:
+                raise ConnectionClosed(self.close_code, self.close_reason)
 
         # If the closing handshake is in progress, let it complete to get the
         # proper close status and code. As an safety measure, the timeout is
@@ -398,7 +417,8 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
         if self.state == CLOSING:
             yield from asyncio.wait_for(
                 self.worker_task, 3 * self.timeout, loop=self.loop)
-            raise ConnectionClosed(self.close_code, self.close_reason)
+            if self.debug:
+                raise ConnectionClosed(self.close_code, self.close_reason)
 
         # Control may only reach this point in buggy third-party subclasses.
         assert self.state == CONNECTING
@@ -649,6 +669,7 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
     def connection_lost(self, exc):
         # 7.1.4. The WebSocket Connection is Closed
         self.state = CLOSED
+        self.connections.remove(self)
         if not self.opening_handshake.done():
             self.opening_handshake.set_result(False)
         if not self.closing_handshake.done():

@@ -34,13 +34,13 @@ class WebSocketServerProtocol(WebSocketCommonProtocol):
     state = CONNECTING
 
     def __init__(self, ws_handler, ws_server, *,
-                 origins=None, subprotocols=None, extra_headers=None, **kwds):
+                 origins=None, subprotocols=None, extra_headers=None, **kwargs):
         self.ws_handler = ws_handler
         self.ws_server = ws_server
         self.origins = origins
         self.subprotocols = subprotocols
         self.extra_headers = extra_headers
-        super().__init__(**kwds)
+        super().__init__(**kwargs)
 
     def connection_made(self, transport):
         super().connection_made(transport)
@@ -50,7 +50,7 @@ class WebSocketServerProtocol(WebSocketCommonProtocol):
         # schedules its execution, and the moment the handler starts running.)
         self.ws_server.register(self)
         self.handler_task = asyncio_ensure_future(
-            self.handler(), loop=self.loop)
+            self.handler(), loop=asyncio.get_event_loop())
 
     @asyncio.coroutine
     def handler(self):
@@ -263,6 +263,7 @@ class WebSocketServer(asyncio.AbstractServer):
         # will then cause the worker task to terminate.
         for websocket in self.websockets:
             websocket.handler_task.cancel()
+
 
     @asyncio.coroutine
     def wait_closed(self):

@@ -1,9 +1,9 @@
 import contextlib
 import unittest
 
-from .exceptions import InvalidHandshake
-from .handshake import *
-from .handshake import accept  # private API
+from websockets.exceptions import InvalidHandshake
+from websockets.handshake import *
+from websockets.handshake import accept  # private API
 
 
 class HandshakeTests(unittest.TestCase):
