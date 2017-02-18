@@ -676,7 +676,11 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
     def connection_lost(self, exc):
         # 7.1.4. The WebSocket Connection is Closed
         self.state = CLOSED
-        self.connections.remove(self)
+        try:
+            self.connections.remove(self)
+        except KeyError:
+            logger.debug("Tried to remove connection {} "
+                            "but it's already gone.".format(self))
         if not self.opening_handshake.done():
             self.opening_handshake.set_result(False)
         if not self.closing_handshake.done():

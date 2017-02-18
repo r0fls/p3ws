@@ -62,7 +62,7 @@ class CommonTests:
         super().setUp()
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        self.protocol = WebSocketCommonProtocol()
+        self.protocol = WebSocketCommonProtocol(debug=True)
         self.transport = TransportMock()
         self.transport.connect(self.loop, self.protocol)
 
