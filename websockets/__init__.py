@@ -7,10 +7,12 @@ from .server import *
 from .uri import *
 from .version import version as __version__                             # noqa
 from .protocol import connections
+import asyncio
 
-async def emit(data):
+@asyncio.coroutine
+def emit(data):
     for connection in connections:
-        await connection.send(data)
+        yield from connection.send(data)
 
 
 __all__ = (

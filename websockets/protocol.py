@@ -327,9 +327,10 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
 
         yield from self.write_frame(opcode, data)
 
-    async def emit(self, data):
+    @asyncio.coroutine
+    def emit(self, data):
         for connection in self.connections:
-            await connection.send(data)
+            yield from connection.send(data)
 
     @asyncio.coroutine
     def ping(self, data=None):
