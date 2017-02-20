@@ -284,8 +284,7 @@ class WebSocketServer(asyncio.AbstractServer):
         yield from self.server.wait_closed()
 
 
-@asyncio.coroutine
-def serve(ws_handler, host=None, port=None, *,
+def create_server(ws_handler, host=None, port=None, *,
           klass=WebSocketServerProtocol,
           timeout=10, max_size=2 ** 20, max_queue=2 ** 5,
           loop=None, legacy_recv=False,
@@ -358,5 +357,9 @@ def serve(ws_handler, host=None, port=None, *,
     server = yield from loop.create_server(factory, host, port, **kwds)
 
     ws_server.wrap(server)
-
     return ws_server
+
+def serve(handler, host=None, port=None, **kwargs):
+    server = create_server(handler, host, port, **kwargs)
+    asyncio.get_event_loop().run_until_complete(server)
+    asyncio.get_event_loop().run_forever()

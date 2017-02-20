@@ -148,7 +148,6 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
         self.closing_handshake = asyncio.Future(loop=loop)
         # Set to None when the connection state becomes CLOSED.
         self.connection_closed = asyncio.Future(loop=loop)
-        self.connections = connections
 
         # Queue of received messages.
         self.messages = asyncio.queues.Queue(max_queue, loop=loop)
@@ -290,11 +289,13 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
         try:
             done, pending = yield from asyncio.wait(
                 [next_message, self.worker_task],
-                loop=self.loop, return_when=asyncio.FIRST_COMPLETED)
+                loop=self.loop, return_when=asyncio.FIRST_COMPLETED,
+            )
         except asyncio.CancelledError:
             # Handle the Task.cancel()
             next_message.cancel()
-            raise
+            if self.debug:
+                raise
 
         # Now there's no need to yield from self.ensure_open(). Either a
         # message was received or the connection was closed.
@@ -303,7 +304,7 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
             return next_message.result()
         else:
             next_message.cancel()
-            if not self.legacy_recv:
+            if self.debug and not self.legacy_recv:
                 raise ConnectionClosed(self.close_code, self.close_reason)
 
     @asyncio.coroutine
@@ -692,3 +693,4 @@ class WebSocketCommonProtocol(asyncio.StreamReaderProtocol):
         if self.writer is not None:
             self.writer.close()
         super().connection_lost(exc)
+        del self
